@@ -1,4 +1,5 @@
-# DATA_ENGINEERING_HUB
+# LECTURE DAY 1
+# Dimension Data Modeling 
 ## Dimensions
 ### Are attributes of a entity 
     - some of these dimensions may identify an entity
@@ -91,5 +92,3 @@ After a join , Spark may mix up ordening of the rows and ruin your compression.
 
 
  
-
-
