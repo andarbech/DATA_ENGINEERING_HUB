@@ -394,3 +394,92 @@ and scoring_class='average'
 
 order by 2 desc
 
+# Day 2 Lecture
+## Slowly changing dimensions (SCD)
+## Idempotent pipelines are critical
+    Your pipeline produces the same result regardless of when it's ran!!! 
+    what does idempotent mean?
+        - Running the same operation multiple times has the same effect as running it once.
+        - denoting an element of a set which is unchanged in value when multiplied or otherwise operated ob by ifself.
+## pipelines should produce the same results
+    - regardless of when they are run
+    - regardless of how many times they are run
+    - regardless of the order in which they are run
+## Why  is the troubleshooting non-idempotent pipelines so hard?
+    - silent failure!
+    - you only see it when you get data inconsistencies and data analyst tell at you. 
+## What can make a pipeline non-idempotent?
+    - INSERT INTO without TRUNCATE
+        - Use MERGE or INSERT OVERWRITE every time please
+        - Using Start_date> Without a corresponding end_date<
+        - Not using a full set of partition sensors
+            -pipeline might run when there is no/partial data
+        - Not using depends_on_past for comulative pipelines
+        - relying on the "latest" partition not proprerly modeled SCD table
+            - Comulative tables design AMPLIES this problem!
+        - Relying on the "latest" partition of anything else that is not properly modeled for it.
+            - e.g event tables with late arriving data
+
+## The pains of not having idempotent pipelines
+    - backfills cause inconsistencies between the old and restated data 
+    - very hard to troubleshoot
+    - Unit testing cann't replicate the production behavior
+    - Silent failures
+## Should you model as slowly changing dimension (SCD)?
+    -Max, the creator of Airflow HATES SCD data modeling
+    -Link to Max’s article about why SCD’s SUCK
+            [text](https://maximebeauchemin.medium.com/functional-data-engineering-a-modern-paradigm-for-batch-data-processing-2327ec32c42a)
+    -What are the options here?
+        -Latest snapshot
+        -Daily/Monthly/Yearly snapshot
+        -SCD (dimensions that change over time)
+    -How slowly changing are the dimensions you’re modeling?
+## Why do dimensions change?
+    -Someone decides they hate iPhone and want Android now
+    -Someone migrates from team dog to team cat
+    -Someone migrates from USA to another country
+## How can you model dimensions that change?
+    - Singular snapshots
+    -BE CAREFUL SINCE THESE ARE NOT IDEMPOTENT
+    -Daily partitioned snapshots
+    -SCD Types 1,2,3
+## The types of Slowly Changing Dimensions
+    -Type 0
+        -Aren’t actually slowly changing (e.g. birth date)
+    -Type 1
+        -You only care about the latest value
+        -NEVER USE THIS TYPE BECAUSE IT MAKES YOUR PIPELINES NOT IDEMPOTENT ANYMORE
+    Type 2
+        -You care about what the value was from “start_date” to “end_date”
+            -Current values usually have either an end_date that is:
+            - NULL 
+            -Far into the future like 9999-12-31
+        -Hard to use:
+            -Since there’s more than 1 row per dimension, you need to be careful about filtering on time
+        -MY FAVORITE TYPE OF SCD
+            -The only type of SCD that is purely IDEMPOTENT
+    Type 3-You only care about “original” and “current”
+    -Benefits
+        -You only have 1 row per dimension
+    -Drawbacks
+        -You lose the history in between original and current
+    -Is this idempotent?
+        -Partially, which means it’s not
+## Which types are idempotent?
+Type 0 and Type 2 are idempotent
+        -Type 0 is because the values are unchanging
+        -Type 2 is but you need to be careful with how you use the start_date and end_date syntax!
+    -Type 1 isn’t idempotent 
+        -If you backfill with this dataset, you’ll get the dimension as it is now, not as it was then!
+    -Type 3 isn’t idempotent
+        -If you backfill with this dataset, it’s impossible to know when to pick “original” vs “current” 
+        and you’ll either 
+## SCD2 Loading
+    -Load the entire history in one query
+        -Inefficient but nimble
+        -1 query and you’re done
+    -Incrementally load the data after the previous SCD is generated
+        -Has the same “depends_on_past” constraint
+        -Efficient but cumbersome
+
+# Day 2 Lab
